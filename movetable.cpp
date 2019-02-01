@@ -46,6 +46,9 @@ void MoveTable::readResponcse(QString s)
     qDebug() << s;
     if(r.indexIn(s) != -1){
         status.idle = r.cap(1);
+        if(status.idle.count() > 10){
+            status.idle = "";
+        }
         status.X = r.cap(2).toDouble();
         status.Y = r.cap(3).toDouble();
         QString pins = r.cap(6);
@@ -79,24 +82,34 @@ void MoveTable::askStatus()
     }
 }
 
-
-void MoveTable::moveTo(double x, double y)
-{
+bool MoveTable::check(double x ,double y){
     if(status.isConnected){
         if(status.positionMode == TableStatus::Relative){
             if(x+status.X >= xMax || y+status.Y >= yMax || x+status.X <= xMin || y+status.Y <= yMin){
                 emit boundingWarning();
-                return;
+                return false;
             }
         }
         if(status.positionMode == TableStatus::Absolute){
             if(x >= xMax || y >= yMax || x <= xMin || y <= yMin){
                 emit boundingWarning();
-                return;
+                return false;
             }
         }
+    }
+    return true;
+}
 
+void MoveTable::moveTo(double x, double y)
+{
+    if(check(x,y)){
         transaction(serialPort,responseTimeMs,QString("G0 X%1 Y%2").arg(x).arg(y));
+    }
+}
+void MoveTable::moveTo(double x, double y, double speed)
+{
+    if(check(x,y)){
+        transaction(serialPort,responseTimeMs,QString("G1 X%1 Y%2 F%3").arg(x).arg(y).arg(speed));
     }
 }
 
@@ -111,6 +124,7 @@ void MoveTable::findZero()
 {
     if(status.isConnected){
         transaction(serialPort,responseTimeMs,"$H");
+        findingHome = true;
     }
 }
 
@@ -141,6 +155,11 @@ void MoveTable::setRelative(){
         status.positionMode = TableStatus::Relative;
         transaction(serialPort,responseTimeMs,"G91");
     }
+}
+
+bool MoveTable::isConnected()
+{
+    return status.isConnected;
 }
 
 

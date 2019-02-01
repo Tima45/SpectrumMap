@@ -9,6 +9,9 @@
 #include "movetable.h"
 #include "qhpgdevicelib.h"
 #include "plot/qcustomplot.h"
+#include <QThread>
+#include <QReadWriteLock>
+#include "samplescanner.h"
 
 namespace Ui {
 class MainWindow;
@@ -21,6 +24,8 @@ class MainWindow : public QMainWindow
 public:
     explicit MainWindow(QWidget *parent = 0);
     ~MainWindow();
+signals:
+    void startScanning(double,double,double,int);
 
 private slots:
     void switchSpectrometerOffUi();
@@ -52,6 +57,16 @@ private slots:
 
     void showWarningBox();
 
+    void on_startScanButton_clicked();
+
+    void stopScanning();
+
+    void switchButtons(bool v);
+
+    void switchScanButtons(bool v);
+
+    void showMessageBox(QString text);
+
 private:
     Ui::MainWindow *ui;
     //-------------
@@ -67,6 +82,16 @@ private:
     MoveTable moveTable;
 
     QTimer serialPortUpdater;
+    QTimer responseTimer;
+
+    bool isScanning  = false;
+    //--------------
+    void initScanner();
+    SampleScanner *scanner;
+    QThread scannerThread;
+    QReadWriteLock l;
+    void closeEvent(QCloseEvent *event);
+
 
 
 };

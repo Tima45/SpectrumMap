@@ -29,14 +29,16 @@ SOURCES += main.cpp\
     qhpgdevicelib.cpp \
     indicator/indicator.cpp \
     masterthread.cpp \
-    movetable.cpp
+    movetable.cpp \
+    samplescanner.cpp
 
 HEADERS  += mainwindow.h \
     plot/qcustomplot.h \
     qhpgdevicelib.h \
     indicator/indicator.h \
     masterthread.h \
-    movetable.h
+    movetable.h \
+    samplescanner.h
 
 FORMS    += mainwindow.ui
 

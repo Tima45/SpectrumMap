@@ -34,6 +34,7 @@ public:
     TableStatus status;
     QTimer tableStatusTimer;
     void setSerialPort(QString port);
+    bool findingHome = false;
 signals:
     void tableConnected();
     void tableDisconnected();
@@ -45,16 +46,20 @@ public slots:
     void readErrorResponcse(QString s);
     void askStatus();
     void moveTo(double x, double y);
+    void moveTo(double x, double y,double speed);
     void resetAlarm();
     void findZero();
     void softReset();
     void setZero();
     void setAbsolute();
     void setRelative();
+    bool isConnected();
 private:
+    bool check(double x ,double y);
     QString serialPort = "";
     QRegExp r;
     static const int responseTimeMs = 1000;
+
 };
 
 #endif // MOVETABLE_H

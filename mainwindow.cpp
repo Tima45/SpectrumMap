@@ -9,6 +9,7 @@ MainWindow::MainWindow(QWidget *parent) :
     initPlot();
     initSpectrometerLib();
     initTable();
+    initScanner();
 
     updateComCheckBox();
 
@@ -32,6 +33,7 @@ void MainWindow::initSpectrometerLib()
 {
     connect(&spectometerLib,SIGNAL(connected()),this,SLOT(switchSpectrometerOnUi()));
     connect(&spectometerLib,SIGNAL(connectionLost()),this,SLOT(switchSpectrometerOffUi()));
+    connect(&spectometerLib,SIGNAL(connectionLost()),this,SLOT(stopScanning()));
     connect(&spectometerLib,SIGNAL(newStatus()),this,SLOT(updateSpectometerInfo()));
 }
 
@@ -61,19 +63,47 @@ void MainWindow::seHvIndicatorValue(int value)
         }
     }
 }
+void MainWindow::closeEvent(QCloseEvent *event)
+{
+    Q_UNUSED(event);
+
+    scanner->l.lockForWrite();
+    scanner->continueScanning = false;
+    scanner->l.unlock();
+
+    spectometerLib.disconnectFromDevice();
+    scannerThread.quit();
+}
 
 void MainWindow::initTable()
 {
     connect(&moveTable,SIGNAL(tableConnected()),this,SLOT(setTableIsConnected()));
     connect(&moveTable,SIGNAL(tableDisconnected()),this,SLOT(setTableIsDisconnected()));
+    connect(&moveTable,SIGNAL(tableDisconnected()),this,SLOT(stopScanning()));
     connect(&moveTable,SIGNAL(statusUpdated()),this,SLOT(updateStatusInfo()));
     connect(&moveTable,SIGNAL(boundingWarning()),this,SLOT(showWarningBox()));
-    updateStatusInfo();
 
-    serialPortUpdater.setInterval(3000);
+    serialPortUpdater.setInterval(5000);
     connect(&serialPortUpdater,SIGNAL(timeout()),this,SLOT(updateComCheckBox()));
-    serialPortUpdater.start();
+    //serialPortUpdater.start();
 
+    responseTimer.setInterval(2000);
+    responseTimer.setSingleShot(true);
+    connect(&responseTimer,SIGNAL(timeout()),this,SLOT(setTableIsDisconnected()));
+
+}
+
+void MainWindow::initScanner()
+{
+    scanner = new SampleScanner();
+    scanner->moveToThread(&scannerThread);
+    scanner->setDevices(&spectometerLib,&moveTable);
+
+    connect(scanner,SIGNAL(scanningStatus(QString)),ui->scanningStatusLabel,SLOT(setText(QString)),Qt::QueuedConnection);
+    connect(this,SIGNAL(startScanning(double,double,double,int)),scanner,SLOT(startScan(double,double,double,int)),Qt::QueuedConnection);
+    connect(scanner,SIGNAL(errorWhileScanning(QString)),this,SLOT(showMessageBox(QString)),Qt::QueuedConnection);
+
+    scannerThread.start();
 }
 
 void MainWindow::updateComCheckBox()
@@ -100,6 +130,7 @@ void MainWindow::switchSpectrometerOffUi()
     ui->spectrometerComPortLabel->setText("");
     ui->connectSpecButton->setText("Подключиться");
     ui->connectionSpectIndicator->setState(false);
+    ui->startScanButton->setEnabled(false);
 }
 
 void MainWindow::switchSpectrometerOnUi()
@@ -108,6 +139,9 @@ void MainWindow::switchSpectrometerOnUi()
     ui->spectrometerComPortLabel->setText("COM"+QString::number(spectometerLib.deviceInfo.iRadugaPort));
     ui->connectSpecButton->setText("Отключиться");
     ui->connectionSpectIndicator->setState(true);
+    if(ui->connectionTableIndicator->isTernedOn()){
+        ui->startScanButton->setEnabled(true);
+    }
 }
 
 void MainWindow::on_setHvButton_clicked()
@@ -169,6 +203,7 @@ void MainWindow::on_backToCenterButton_clicked()
 void MainWindow::on_gotoButton_clicked()
 {
     if(moveTable.status.isConnected){ 
+        switchButtons(false);
         moveTable.moveTo(ui->XBox->value(),ui->YBox->value());
     }
 }
@@ -177,12 +212,20 @@ void MainWindow::setTableIsConnected()
 {
     ui->connectionTableIndicator->setState(true);
     ui->comPortsBox->setEnabled(false);
+    if(ui->connectionSpectIndicator->isTernedOn()){
+        ui->startScanButton->setEnabled(true);
+    }
 }
 
 void MainWindow::setTableIsDisconnected()
 {
-    ui->connectionTableIndicator->setState(false);
-    ui->comPortsBox->setEnabled(true);
+    if(!moveTable.findingHome){
+        isScanning = false;
+        ui->connectionTableIndicator->setState(false);
+        ui->comPortsBox->setEnabled(true);
+
+        switchButtons(false);
+    }
 }
 
 void MainWindow::updateStatusInfo()
@@ -191,11 +234,9 @@ void MainWindow::updateStatusInfo()
     ui->tableY->setText(QString::number(moveTable.status.Y));
     ui->tableStatusLabel->setText(moveTable.status.idle);
 
-    ui->absoluteRadio->setEnabled(moveTable.status.idle == "Idle");
-    ui->relativeRadio->setEnabled(moveTable.status.idle == "Idle");
-    ui->gotoButton->setEnabled(moveTable.status.idle == "Idle");
-    ui->XBox->setEnabled(moveTable.status.idle == "Idle");
-    ui->YBox->setEnabled(moveTable.status.idle == "Idle");
+    if(!isScanning){
+        switchButtons(moveTable.status.idle == "Idle");
+    }
 
 
     ui->endPointXIndicator->setState(moveTable.status.PnX);
@@ -206,6 +247,11 @@ void MainWindow::updateStatusInfo()
     }else{
         ui->coordsModLabel->setText("Онтносительно");
     }
+    if(!ui->connectionTableIndicator->isTernedOn()){
+        ui->connectionTableIndicator->setState(true);
+    }
+    moveTable.findingHome = false;
+    responseTimer.start();
 }
 
 
@@ -236,4 +282,58 @@ void MainWindow::on_relativeRadio_toggled(bool checked)
     if(checked){
         moveTable.setRelative();
     }
+}
+
+void MainWindow::on_startScanButton_clicked()
+{
+    if(!isScanning){
+
+        scanner->l.lockForWrite();
+        scanner->continueScanning = true;
+        scanner->l.unlock();
+
+        isScanning = true;
+        ui->scanningIndicator->setState(true);
+        ui->startScanButton->setText("Стоп");
+        switchButtons(false);
+        switchScanButtons(false);
+        emit startScanning(ui->sampleWidthEdit->value(),ui->sampleHeightEdit->value(),ui->strideEdit->value(),ui->stoppingTimeEdit->value());
+    }else{
+        scanner->l.lockForWrite();
+        scanner->continueScanning = false;
+        scanner->l.unlock();
+
+        stopScanning();
+        switchButtons(false);
+    }
+}
+
+void MainWindow::stopScanning()
+{
+    isScanning = false;
+    ui->scanningIndicator->setState(false);
+    ui->startScanButton->setText("Начать измерение");
+    switchScanButtons(true);
+}
+
+void MainWindow::switchButtons(bool v)
+{
+    ui->absoluteRadio->setEnabled(v);
+    ui->relativeRadio->setEnabled(v);
+    ui->gotoButton->setEnabled(v);
+    ui->XBox->setEnabled(v);
+    ui->YBox->setEnabled(v);
+}
+
+void MainWindow::switchScanButtons(bool v)
+{
+    ui->sampleHeightEdit->setEnabled(v);
+    ui->sampleWidthEdit->setEnabled(v);
+    ui->strideEdit->setEnabled(v);
+    ui->stoppingTimeEdit->setEnabled(v);
+}
+
+void MainWindow::showMessageBox(QString text)
+{
+    QMessageBox::critical(this,"Ошибка",text);
 }
