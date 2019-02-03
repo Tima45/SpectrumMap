@@ -56,4 +56,4 @@ SUBDIRS += \
 RESOURCES += \
     indicator/indicatorpicturesresource.qrc
 
-RC_FILE = icon.rc
+#RC_FILE = icon.rc

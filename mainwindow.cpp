@@ -36,6 +36,36 @@ void MainWindow::initSpectrometerLib()
     connect(&spectometerLib,SIGNAL(connectionLost()),this,SLOT(stopScanning()));
     connect(&spectometerLib,SIGNAL(newStatus()),this,SLOT(updateSpectometerInfo()));
 }
+void MainWindow::initTable()
+{
+    connect(&moveTable,SIGNAL(tableConnected()),this,SLOT(setTableIsConnected()));
+    connect(&moveTable,SIGNAL(tableDisconnected()),this,SLOT(setTableIsDisconnected()));
+    connect(&moveTable,SIGNAL(tableDisconnected()),this,SLOT(stopScanning()));
+    connect(&moveTable,SIGNAL(statusUpdated()),this,SLOT(updateStatusInfo()));
+    connect(&moveTable,SIGNAL(boundingWarning()),this,SLOT(showWarningBox()));
+
+    serialPortUpdater.setInterval(5000);
+    connect(&serialPortUpdater,SIGNAL(timeout()),this,SLOT(updateComCheckBox()));
+    //serialPortUpdater.start();
+
+    responseTimer.setInterval(2000);
+    responseTimer.setSingleShot(true);
+    connect(&responseTimer,SIGNAL(timeout()),this,SLOT(setTableIsDisconnected()));
+
+}
+
+void MainWindow::initScanner()
+{
+    scanner = new SampleScanner();
+    scanner->moveToThread(&scannerThread);
+    scanner->setDevices(&spectometerLib,&moveTable);
+
+    connect(scanner,SIGNAL(scanningStatus(QString)),ui->scanningStatusLabel,SLOT(setText(QString)),Qt::QueuedConnection);
+    connect(this,SIGNAL(startScanning(double,double,double,int)),scanner,SLOT(startScan(double,double,double,int)),Qt::QueuedConnection);
+    connect(scanner,SIGNAL(errorWhileScanning(QString)),this,SLOT(showMessageBox(QString)),Qt::QueuedConnection);
+
+    scannerThread.start();
+}
 
 bool MainWindow::nativeEvent(const QByteArray &eventType, void *message, long *result)
 {
@@ -75,36 +105,7 @@ void MainWindow::closeEvent(QCloseEvent *event)
     scannerThread.quit();
 }
 
-void MainWindow::initTable()
-{
-    connect(&moveTable,SIGNAL(tableConnected()),this,SLOT(setTableIsConnected()));
-    connect(&moveTable,SIGNAL(tableDisconnected()),this,SLOT(setTableIsDisconnected()));
-    connect(&moveTable,SIGNAL(tableDisconnected()),this,SLOT(stopScanning()));
-    connect(&moveTable,SIGNAL(statusUpdated()),this,SLOT(updateStatusInfo()));
-    connect(&moveTable,SIGNAL(boundingWarning()),this,SLOT(showWarningBox()));
 
-    serialPortUpdater.setInterval(5000);
-    connect(&serialPortUpdater,SIGNAL(timeout()),this,SLOT(updateComCheckBox()));
-    //serialPortUpdater.start();
-
-    responseTimer.setInterval(2000);
-    responseTimer.setSingleShot(true);
-    connect(&responseTimer,SIGNAL(timeout()),this,SLOT(setTableIsDisconnected()));
-
-}
-
-void MainWindow::initScanner()
-{
-    scanner = new SampleScanner();
-    scanner->moveToThread(&scannerThread);
-    scanner->setDevices(&spectometerLib,&moveTable);
-
-    connect(scanner,SIGNAL(scanningStatus(QString)),ui->scanningStatusLabel,SLOT(setText(QString)),Qt::QueuedConnection);
-    connect(this,SIGNAL(startScanning(double,double,double,int)),scanner,SLOT(startScan(double,double,double,int)),Qt::QueuedConnection);
-    connect(scanner,SIGNAL(errorWhileScanning(QString)),this,SLOT(showMessageBox(QString)),Qt::QueuedConnection);
-
-    scannerThread.start();
-}
 
 void MainWindow::updateComCheckBox()
 {
@@ -189,14 +190,6 @@ void MainWindow::on_tableFindZeroButton_clicked()
 {
     if(moveTable.status.isConnected){
         moveTable.findZero();
-    }
-}
-
-
-void MainWindow::on_backToCenterButton_clicked()
-{
-    if(moveTable.status.isConnected){
-        //--
     }
 }
 
@@ -287,7 +280,6 @@ void MainWindow::on_relativeRadio_toggled(bool checked)
 void MainWindow::on_startScanButton_clicked()
 {
     if(!isScanning){
-
         scanner->l.lockForWrite();
         scanner->continueScanning = true;
         scanner->l.unlock();

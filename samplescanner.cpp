@@ -2,7 +2,8 @@
 
 SampleScanner::SampleScanner(QObject *parent) : QObject(parent)
 {
-
+    connect(this,SIGNAL(moveToNext()),this,SLOT(moveingToPos()),Qt::QueuedConnection);
+    connect(&positionChekerTimer,SIGNAL(timeout()),this,SLOT(checkPosition()),Qt::QueuedConnection);
 }
 
 SampleScanner::~SampleScanner()
@@ -40,16 +41,28 @@ void SampleScanner::startScan(double width, double height, double stride, int ti
         emit errorWhileScanning("Стол дожен находиться в центре.");
         return;
     }
+    resultMap.clear();
 
-    emit scanningStatus("Едем в начало координат образца...");
+    this->width = width;
+    this->height = height;
+    this->stride = stride;
+    this->timeMs = timeMs;
+
     currentX = width/2.0;
     currentY = height/2.0;
 
     moveTable->setAbsolute();
+
+    l.lockForRead();
+    if(continueScanning){
+        emit moveToNext();
+    }
+    l.unlock();
+
+    //-----/*
     l.lockForRead();
     while(continueScanning){
 
-        //TODO: переделать всё через сигналы слоты. текущий поток спит и не сканирует
         l.unlock();
 
         moveTable->moveTo(currentX,currentY,500);
@@ -84,4 +97,65 @@ void SampleScanner::startScan(double width, double height, double stride, int ti
 void SampleScanner::getSpectrum()
 {
 
+    if(deviceLib->info.sSPK_REALTIME >= timeMs){
+        deviceLib->info.sSPK_REALTIME = 0; //WARNING: может быть ошибка меняю в разных потоках
+
+        SpectrumType * newSpectrum = new SpectrumType(deviceLib->spectrum);
+        resultMap.insert(QPointF(currentX,currentY),newSpectrum);
+
+        qDebug() << "scanning finished";
+        deviceLib->stopScanSpectrum();
+
+        currentX -= stride;
+        if(currentX <= -width/2.0){
+            currentY -= stride;
+            currentX = width/2.0;
+            if(currentY < -height/2.0){             //TODO: последний ряд не сканируется
+                emit scanningStatus(QString("Сканирование закончено."));
+                emit scanningFinished();
+                stopAll();
+                return;
+            }
+        }
+        emit moveToNext();
+    }
+}
+
+void SampleScanner::moveingToPos()
+{
+    moveTable->moveTo(currentX,currentY,500);
+    positionChekerTimer.start(200);
+    emit scanningStatus(QString("Смещаемся к следующей точке X%1 Y%2").arg(currentX).arg(currentY));
+}
+
+void SampleScanner::checkPosition()
+{
+    static int counter = 0;
+    counter++;
+    if(moveTable->status.X == currentX && moveTable->status.Y == currentY){
+        counter = 0;
+        positionChekerTimer.stop();
+        if(!deviceLib->isScanning){
+            deviceLib->startScanSpectrum();
+            emit scanningStatus(QString("Сканирование... текущее положение X%1 Y%2").arg(currentX).arg(currentY));
+        }else{
+            stopAll();
+            emit errorWhileScanning("Детектор и так уже набирает спектр :(");
+        }
+    }
+    if(counter == 50000/positionChekerTimer.interval()){     //50sec.. too long!
+        counter = 0;
+        stopAll();
+        emit scanningStatus(QString("Сканирование... не удалося").arg(currentX).arg(currentY));
+        emit errorWhileScanning("Что-то долго едем... Возможно косяк?");
+    }
+}
+
+void SampleScanner::stopAll()
+{
+    deviceLib->stopScanSpectrum();
+    positionChekerTimer.stop();
+    l.lockForWrite();
+    continueScanning = false;
+    l.unlock();
 }

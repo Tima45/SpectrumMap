@@ -486,16 +486,6 @@
         </widget>
        </item>
        <item>
-        <widget class="QPushButton" name="backToCenterButton">
-         <property name="enabled">
-          <bool>false</bool>
-         </property>
-         <property name="text">
-          <string>Вернуть в середину</string>
-         </property>
-        </widget>
-       </item>
-       <item>
         <widget class="QPushButton" name="setZeroButton">
          <property name="text">
           <string>Установить ноль</string>

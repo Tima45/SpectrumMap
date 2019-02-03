@@ -28,6 +28,8 @@ struct SpectrumType{
     DWORD liveTime; // счетчик «живого» времени набора спектра (в миллисекундах)
     DWORD dataTime; // время начала набора
     DWORD chanArray[16384]; // буфер спектра (по 4 байта на канал)
+    SpectrumType(const SpectrumType &other);
+    //~SpectrumType();
 };
 struct DeviceStatusInfo{
     uint8_t sSPK_ON; // 1 байт, младший бит – признак активного набора спектра      1

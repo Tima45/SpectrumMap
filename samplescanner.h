@@ -3,6 +3,7 @@
 
 #include <QObject>
 #include <QReadWriteLock>
+#include <QDebug>
 #include "movetable.h"
 #include "qhpgdevicelib.h"
 
@@ -17,17 +18,32 @@ public:
     double currentY = 0;
     bool continueScanning = false;
     QReadWriteLock l;
+    QMap<QPoint,SpectrumType*> resultMap;
 signals:
     void errorWhileScanning(QString);
     void scanningStatus(QString);
     void scanningFinished();
+    void moveToNext();
 public slots:
     void startScan(double width,double height,double stride,int timeMs);
 private slots:
     void getSpectrum();
+    void moveingToPos();
+    void checkPosition();
 private:
     QHPGDeviceLib *deviceLib = nullptr;
     MoveTable *moveTable = nullptr;
+
+    QTimer positionChekerTimer;
+
+    double width;
+    double height;
+    double stride;
+    int timeMs;
+
+    void stopAll();
+
+
 
 };
 

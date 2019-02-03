@@ -36,7 +36,6 @@ private slots:
 
     void on_tableTableButton_clicked();
     void on_tableFindZeroButton_clicked();
-    void on_backToCenterButton_clicked();
     void on_gotoButton_clicked();
     void setTableIsConnected();
     void setTableIsDisconnected();
@@ -69,28 +68,27 @@ private slots:
 
 private:
     Ui::MainWindow *ui;
+    void closeEvent(QCloseEvent *event);
     //-------------
     void initPlot();
+    void initScanner();
+    void initTable();
+    void initSpectrometerLib();
     //-------------
     QHPGDeviceLib spectometerLib;
-    void initSpectrometerLib();
     bool nativeEvent(const QByteArray &eventType, void *message, long *result);
     bool hvOn = false;
     void seHvIndicatorValue(int value);
     //------------
-    void initTable();
     MoveTable moveTable;
-
     QTimer serialPortUpdater;
     QTimer responseTimer;
-
     bool isScanning  = false;
     //--------------
-    void initScanner();
     SampleScanner *scanner;
     QThread scannerThread;
     QReadWriteLock l;
-    void closeEvent(QCloseEvent *event);
+
 
 
 

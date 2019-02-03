@@ -170,7 +170,11 @@ int QHPGDeviceLib::stopScanSpectrum()
 {
     if(isConnected()){
         isScanning = false;
-        return g4com_set_mca_idle_mode(deviceHandle,2) | g4com_stop_spk(deviceHandle);
+        if(isScanning){
+            return g4com_set_mca_idle_mode(deviceHandle,2) | g4com_stop_spk(deviceHandle);
+        }else{
+            return 0;
+        }
     }else{
         return -1;
     }
@@ -190,3 +194,16 @@ bool QHPGDeviceLib::isConnected()
 
 
 
+
+SpectrumType::SpectrumType(const SpectrumType &other)
+{
+    channelCount = other.channelCount;
+    dataIsNew = other.dataIsNew;
+    dataCount = other.dataCount;
+    workTime = other.workTime;
+    liveTime = other.liveTime;
+    dataTime = other.dataTime;
+    for(int i = 0; i < 16384; i++){
+        chanArray[i] = other.chanArray[i];
+    }
+}
