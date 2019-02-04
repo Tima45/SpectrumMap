@@ -21,6 +21,8 @@ struct RadugaDevInfo{
     char buff[12];  //страховка
 };
 struct SpectrumType{
+    SpectrumType();
+    SpectrumType(const SpectrumType &other);
     uint32_t channelCount; // количество каналов спектра
     bool dataIsNew; // произошло ли обновление спектра с момента предыдущего чтения
     int64_t dataCount; // количество зарегистрированных событий
@@ -28,7 +30,7 @@ struct SpectrumType{
     DWORD liveTime; // счетчик «живого» времени набора спектра (в миллисекундах)
     DWORD dataTime; // время начала набора
     DWORD chanArray[16384]; // буфер спектра (по 4 байта на канал)
-    SpectrumType(const SpectrumType &other);
+
     //~SpectrumType();
 };
 struct DeviceStatusInfo{
@@ -118,7 +120,7 @@ public:
     static const int cmd_get_ext_stat      = 24;
     static const int cmd_get_spk_page      = 64; // команды с 64-й по 127 - запрос на передачу страницы спектра
 
-    explicit QHPGDeviceLib(QObject *parent = 0);
+    QHPGDeviceLib(QObject *parent = 0);
     ~QHPGDeviceLib();
     bool libIsValid;
     bool isScanning;
@@ -141,6 +143,7 @@ public:
     void setVoltage(int voltage);
     bool isConnected();
 private:
+    QHPGDeviceLib(const QHPGDeviceLib & other);
     HINSTANCE hGetProcIDDLL;
     int deviceHandle = -1;
     bool loadDeviceLib();

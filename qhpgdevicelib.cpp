@@ -195,6 +195,11 @@ bool QHPGDeviceLib::isConnected()
 
 
 
+SpectrumType::SpectrumType()
+{
+
+}
+
 SpectrumType::SpectrumType(const SpectrumType &other)
 {
     channelCount = other.channelCount;

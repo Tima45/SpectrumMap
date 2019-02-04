@@ -6,7 +6,6 @@
 #include <QDebug>
 #include "movetable.h"
 #include "qhpgdevicelib.h"
-
 class SampleScanner : public QObject
 {
     Q_OBJECT
@@ -18,7 +17,7 @@ public:
     double currentY = 0;
     bool continueScanning = false;
     QReadWriteLock l;
-    QMap<QPoint,SpectrumType*> resultMap;
+    QMap<QPointF,SpectrumType*> resultMap;
 signals:
     void errorWhileScanning(QString);
     void scanningStatus(QString);

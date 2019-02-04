@@ -12,7 +12,6 @@ MainWindow::MainWindow(QWidget *parent) :
     initScanner();
 
     updateComCheckBox();
-
 }
 
 MainWindow::~MainWindow()
@@ -61,7 +60,7 @@ void MainWindow::initScanner()
     scanner->setDevices(&spectometerLib,&moveTable);
 
     connect(scanner,SIGNAL(scanningStatus(QString)),ui->scanningStatusLabel,SLOT(setText(QString)),Qt::QueuedConnection);
-    connect(this,SIGNAL(startScanning(double,double,double,int)),scanner,SLOT(startScan(double,double,double,int)),Qt::QueuedConnection);
+    connect(this,SIGNAL(startScanning(double,double,double,int)),scanner,SLOT(startScan(double,double,double,int)),Qt::DirectConnection);
     connect(scanner,SIGNAL(errorWhileScanning(QString)),this,SLOT(showMessageBox(QString)),Qt::QueuedConnection);
 
     scannerThread.start();

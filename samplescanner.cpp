@@ -1,8 +1,17 @@
 #include "samplescanner.h"
+#include "math.h"
+
+bool operator<(const QPointF &p1,const QPointF &p2)
+{
+    double r1 = sqrt(powf(p1.x(),2)+powf(p1.y(),2));
+    double r2 = sqrt(powf(p2.x(),2)+powf(p2.y(),2));
+    return r1 < r2;
+}
+
 
 SampleScanner::SampleScanner(QObject *parent) : QObject(parent)
 {
-    connect(this,SIGNAL(moveToNext()),this,SLOT(moveingToPos()),Qt::QueuedConnection);
+    connect(this,SIGNAL(moveToNext()),this,SLOT(moveingToPos()),Qt::AutoConnection);
     connect(&positionChekerTimer,SIGNAL(timeout()),this,SLOT(checkPosition()),Qt::QueuedConnection);
 }
 
@@ -24,15 +33,17 @@ void SampleScanner::startScan(double width, double height, double stride, int ti
         qDebug() << "Devices not setuped";
         return;
     }
+
     if(!deviceLib->isConnected() || !moveTable->isConnected()){
         emit errorWhileScanning("Устройства не подключены.");
         return;
     }
 
-    /*if(deviceLib->extraInfo.sDAC1_CURVAL != 1450){
+    if(deviceLib->extraInfo.sDAC1_CURVAL != 1450){
         emit errorWhileScanning("Нет высокого напряжения.");
         return;
-    }*/
+    }
+
     if(moveTable->status.idle != "Idle" || deviceLib->isScanning){
         emit errorWhileScanning("Устройства не готовы.");
         return;
@@ -41,8 +52,12 @@ void SampleScanner::startScan(double width, double height, double stride, int ti
         emit errorWhileScanning("Стол дожен находиться в центре.");
         return;
     }
+
     resultMap.clear();
 
+    moveTable->setAbsolute();
+
+    l.lockForRead();
     this->width = width;
     this->height = height;
     this->stride = stride;
@@ -50,16 +65,14 @@ void SampleScanner::startScan(double width, double height, double stride, int ti
 
     currentX = width/2.0;
     currentY = height/2.0;
-
-    moveTable->setAbsolute();
-
-    l.lockForRead();
+    positionChekerTimer.start(200);
     if(continueScanning){
         emit moveToNext();
     }
     l.unlock();
 
     //-----/*
+    /*
     l.lockForRead();
     while(continueScanning){
 
@@ -91,16 +104,18 @@ void SampleScanner::startScan(double width, double height, double stride, int ti
         }
         l.lockForRead();
     }
-    l.unlock();
+    l.unlock();*/
 }
+
+
+
 
 void SampleScanner::getSpectrum()
 {
-
     if(deviceLib->info.sSPK_REALTIME >= timeMs){
         deviceLib->info.sSPK_REALTIME = 0; //WARNING: может быть ошибка меняю в разных потоках
 
-        SpectrumType * newSpectrum = new SpectrumType(deviceLib->spectrum);
+        SpectrumType *newSpectrum = new SpectrumType(deviceLib->spectrum);
         resultMap.insert(QPointF(currentX,currentY),newSpectrum);
 
         qDebug() << "scanning finished";
@@ -124,7 +139,6 @@ void SampleScanner::getSpectrum()
 void SampleScanner::moveingToPos()
 {
     moveTable->moveTo(currentX,currentY,500);
-    positionChekerTimer.start(200);
     emit scanningStatus(QString("Смещаемся к следующей точке X%1 Y%2").arg(currentX).arg(currentY));
 }
 
@@ -134,7 +148,7 @@ void SampleScanner::checkPosition()
     counter++;
     if(moveTable->status.X == currentX && moveTable->status.Y == currentY){
         counter = 0;
-        positionChekerTimer.stop();
+        positionChekerTimer.stop();     //BUG:Надо че-то делать с таймерами и потоками
         if(!deviceLib->isScanning){
             deviceLib->startScanSpectrum();
             emit scanningStatus(QString("Сканирование... текущее положение X%1 Y%2").arg(currentX).arg(currentY));
