@@ -18,6 +18,7 @@ public:
     bool continueScanning = false;
     QReadWriteLock l;
     QMap<QPointF,SpectrumType*> resultMap;
+    void stopAll();
 signals:
     void errorWhileScanning(QString);
     void scanningStatus(QString);
@@ -34,13 +35,14 @@ private:
     MoveTable *moveTable = nullptr;
 
     QTimer positionChekerTimer;
+    QTimer scanTimer;
 
     double width;
     double height;
     double stride;
     int timeMs;
 
-    void stopAll();
+
 
 
 

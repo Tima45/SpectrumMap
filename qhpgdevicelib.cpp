@@ -75,6 +75,11 @@ bool QHPGDeviceLib::loadDeviceLib()
     g4com_search_devices = (t_g4com_search_devices)GetProcAddress(hGetProcIDDLL,"g4com_search_devices");
     g4com_get_device_description = (t_g4com_get_device_description)GetProcAddress(hGetProcIDDLL,"g4com_get_device_description");
     g4com_connect_by_index = (t_g4com_connect_by_index)GetProcAddress(hGetProcIDDLL,"g4com_connect_by_index");
+
+    if(!g4com_connect_by_index){
+        qDebug() << Q_FUNC_INFO << "Could not load the dynamic library g4com_connect_by_index";
+        return false;
+    }
     g4com_disconnect = (t_g4com_disconnect)GetProcAddress(hGetProcIDDLL,"g4com_disconnect");
     g4com_set_owner_whandle = (t_g4com_set_owner_whandle)GetProcAddress(hGetProcIDDLL,"g4com_set_owner_whandle");
     g4com_get_status = (t_g4com_get_status)GetProcAddress(hGetProcIDDLL,"g4com_get_status");
@@ -169,8 +174,8 @@ int QHPGDeviceLib::startScanSpectrum()
 int QHPGDeviceLib::stopScanSpectrum()
 {
     if(isConnected()){
-        isScanning = false;
         if(isScanning){
+            isScanning = false;
             return g4com_set_mca_idle_mode(deviceHandle,2) | g4com_stop_spk(deviceHandle);
         }else{
             return 0;

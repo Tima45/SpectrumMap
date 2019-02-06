@@ -48,7 +48,9 @@ DISTFILES += \
     indicator/indicatorLoading.gif \
     indicator/indicatorOff.png \
     indicator/indicatorOn.png \
-    indicator/indicatorOn2.png
+    indicator/indicatorOn2.png \
+    Icon.ico \
+    icon.rc
 
 SUBDIRS += \
     indicator/Indicator.pro
@@ -56,4 +58,4 @@ SUBDIRS += \
 RESOURCES += \
     indicator/indicatorpicturesresource.qrc
 
-#RC_FILE = icon.rc
+RC_FILE = icon.rc

@@ -66,6 +66,8 @@ private slots:
 
     void showMessageBox(QString text);
 
+    void thenScanningFinished();
+
 private:
     Ui::MainWindow *ui;
     void closeEvent(QCloseEvent *event);
@@ -82,11 +84,9 @@ private:
     //------------
     MoveTable moveTable;
     QTimer serialPortUpdater;
-    QTimer responseTimer;
     bool isScanning  = false;
     //--------------
     SampleScanner *scanner;
-    QThread scannerThread;
     QReadWriteLock l;
 
 

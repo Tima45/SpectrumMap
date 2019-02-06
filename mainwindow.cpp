@@ -47,23 +47,20 @@ void MainWindow::initTable()
     connect(&serialPortUpdater,SIGNAL(timeout()),this,SLOT(updateComCheckBox()));
     //serialPortUpdater.start();
 
-    responseTimer.setInterval(2000);
-    responseTimer.setSingleShot(true);
-    connect(&responseTimer,SIGNAL(timeout()),this,SLOT(setTableIsDisconnected()));
 
 }
 
 void MainWindow::initScanner()
 {
     scanner = new SampleScanner();
-    scanner->moveToThread(&scannerThread);
+    /*
+    scanner->moveToThread(&scannerThread);*/
     scanner->setDevices(&spectometerLib,&moveTable);
 
-    connect(scanner,SIGNAL(scanningStatus(QString)),ui->scanningStatusLabel,SLOT(setText(QString)),Qt::QueuedConnection);
-    connect(this,SIGNAL(startScanning(double,double,double,int)),scanner,SLOT(startScan(double,double,double,int)),Qt::DirectConnection);
-    connect(scanner,SIGNAL(errorWhileScanning(QString)),this,SLOT(showMessageBox(QString)),Qt::QueuedConnection);
-
-    scannerThread.start();
+    connect(scanner,SIGNAL(scanningStatus(QString)),ui->scanningStatusLabel,SLOT(setText(QString)));
+    connect(this,SIGNAL(startScanning(double,double,double,int)),scanner,SLOT(startScan(double,double,double,int)));
+    connect(scanner,SIGNAL(errorWhileScanning(QString)),this,SLOT(showMessageBox(QString)));
+    connect(scanner,SIGNAL(scanningFinished()),this,SLOT(thenScanningFinished()));
 }
 
 bool MainWindow::nativeEvent(const QByteArray &eventType, void *message, long *result)
@@ -96,12 +93,15 @@ void MainWindow::closeEvent(QCloseEvent *event)
 {
     Q_UNUSED(event);
 
+    spectometerLib.disconnectFromDevice();
+
     scanner->l.lockForWrite();
     scanner->continueScanning = false;
     scanner->l.unlock();
 
-    spectometerLib.disconnectFromDevice();
-    scannerThread.quit();
+    serialPortUpdater.stop();
+
+    moveTable.quit();
 }
 
 
@@ -166,7 +166,9 @@ void MainWindow::on_connectSpecButton_clicked()
     spectometerLib.setMainWindowId(this->windowHandle()->winId());
     if(!spectometerLib.isConnected()){
         ui->connectionSpectIndicator->setLoading();
-        if(spectometerLib.getAvailableDevicesCount() >= 1){
+        int devCount = spectometerLib.getAvailableDevicesCount();
+        qDebug() << devCount;
+        if(devCount >= 1){
             spectometerLib.connectToDevice(0);
         }else{
             QMessageBox::information(this,"Спектрометр","Не найдено подключенных спектрометров");
@@ -243,7 +245,6 @@ void MainWindow::updateStatusInfo()
         ui->connectionTableIndicator->setState(true);
     }
     moveTable.findingHome = false;
-    responseTimer.start();
 }
 
 
@@ -290,9 +291,7 @@ void MainWindow::on_startScanButton_clicked()
         switchScanButtons(false);
         emit startScanning(ui->sampleWidthEdit->value(),ui->sampleHeightEdit->value(),ui->strideEdit->value(),ui->stoppingTimeEdit->value());
     }else{
-        scanner->l.lockForWrite();
-        scanner->continueScanning = false;
-        scanner->l.unlock();
+        scanner->stopAll();
 
         stopScanning();
         switchButtons(false);
@@ -305,6 +304,7 @@ void MainWindow::stopScanning()
     ui->scanningIndicator->setState(false);
     ui->startScanButton->setText("Начать измерение");
     switchScanButtons(true);
+
 }
 
 void MainWindow::switchButtons(bool v)
@@ -327,4 +327,9 @@ void MainWindow::switchScanButtons(bool v)
 void MainWindow::showMessageBox(QString text)
 {
     QMessageBox::critical(this,"Ошибка",text);
+}
+
+void MainWindow::thenScanningFinished()
+{
+    stopScanning();
 }

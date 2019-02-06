@@ -67,6 +67,7 @@ MasterThread::~MasterThread()
     m_cond.wakeOne();
     m_mutex.unlock();
     wait();
+    quit();
 }
 //! [0]
 
@@ -110,7 +111,7 @@ void MasterThread::run()
         return;
     }
 
-    while (!m_quit) {
+    while (!m_quit){
 //![6] //! [7]
         if (currentPortNameChanged) {
             serial.close();
