@@ -56,6 +56,7 @@ void SampleScanner::startScan(double width, double height, double stride, int ti
         return;
     }
 
+    timeStart = QDateTime::currentDateTime();
     resultMap.clear();
 
     moveTable->setAbsolute();
@@ -65,6 +66,8 @@ void SampleScanner::startScan(double width, double height, double stride, int ti
     this->height = height;
     this->stride = stride;
     this->timeMs = timeMs;
+
+    revers = -1.0;
 
     currentX = width/2.0;
     currentY = -height/2.0;
@@ -83,22 +86,26 @@ void SampleScanner::getSpectrum()
 {
     if(continueScanning){
     qDebug() << deviceLib->info.sSPK_REALTIME << timeMs;
-        deviceLib->info.sSPK_REALTIME = 0; //WARNING: может быть ошибка меняю в разных потоках
 
-        SpectrumType *newSpectrum = new SpectrumType(deviceLib->spectrum);
-        resultMap.insert(QPointF(currentX,currentY),newSpectrum);
-
-        qDebug() << "scanning finished";
         deviceLib->stopScanSpectrum();
 
-        currentX -= stride;
-        if(currentX < -width/2.0){
+        deviceLib->info.sSPK_REALTIME = 0;
+
+        SpectrumType *newSpectrum = new SpectrumType(deviceLib->spectrum);
+        resultMap.insert(QPointF(-currentX,-currentY),newSpectrum);
+
+        emit newResult(newSpectrum);
+
+        currentX += revers*stride;
+        if(currentX > width/2.0 || currentX < -width/2.0){
+            currentX = revers*width/2.0;
+            revers *= -1.0;
+
             currentY += stride;
-            currentX = width/2.0;
-            if(currentY > height/2.0){             //TODO: последний ряд не сканируется
+            if(currentY > height/2.0){
+                stopAll();
                 emit scanningStatus(QString("Сканирование закончено."));
                 emit scanningFinished();
-                stopAll();
                 return;
             }
         }
@@ -134,7 +141,7 @@ void SampleScanner::checkPosition()
         }
         return;
     }
-    if(counter == 10000/positionChekerTimer.interval()){     //10sec.. too long!
+    if(counter == 5000/positionChekerTimer.interval()){     //10sec.. too long!
         counter = 0;
         //stopAll();
         emit moveToNext();
@@ -147,6 +154,7 @@ void SampleScanner::checkPosition()
 
 void SampleScanner::stopAll()
 {
+    timeStop = QDateTime::currentDateTime();
     deviceLib->stopScanSpectrum();
     positionChekerTimer.stop();
     l.lockForWrite();

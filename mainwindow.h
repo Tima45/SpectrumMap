@@ -68,6 +68,10 @@ private slots:
 
     void thenScanningFinished();
 
+    void updateStatusScanning(QString status);
+
+    void drawSpectrum();
+
 private:
     Ui::MainWindow *ui;
     void closeEvent(QCloseEvent *event);
@@ -88,6 +92,14 @@ private:
     //--------------
     SampleScanner *scanner;
     QReadWriteLock l;
+    //--------------
+    QVector<double> x;
+    QVector<double> energy;
+    QVector<double> y;
+    QCPGraph *spectrumGraph;
+    //----------------
+    void loadSettings();
+    double C0,C1;
 
 
 

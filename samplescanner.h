@@ -4,6 +4,7 @@
 #include <QObject>
 #include <QReadWriteLock>
 #include <QDebug>
+#include <QDateTime>
 #include "movetable.h"
 #include "qhpgdevicelib.h"
 class SampleScanner : public QObject
@@ -17,6 +18,8 @@ public:
     double currentY = 0;
     bool continueScanning = false;
     QReadWriteLock l;
+    QDateTime timeStart;
+    QDateTime timeStop;
     QMap<QPointF,SpectrumType*> resultMap;
     void stopAll();
 signals:
@@ -24,6 +27,7 @@ signals:
     void scanningStatus(QString);
     void scanningFinished();
     void moveToNext();
+    void newResult(SpectrumType*);
 public slots:
     void startScan(double width,double height,double stride,int timeMs);
 private slots:
@@ -41,6 +45,8 @@ private:
     double height;
     double stride;
     int timeMs;
+
+    double revers = -1.0;
 
 
 

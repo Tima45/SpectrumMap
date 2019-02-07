@@ -6,6 +6,8 @@ MainWindow::MainWindow(QWidget *parent) :
     ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
+    loadSettings();
+
     initPlot();
     initSpectrometerLib();
     initTable();
@@ -26,6 +28,15 @@ void MainWindow::initPlot()
     ui->mapPlot->setInteraction(QCP::iRangeZoom, true);
     ui->mapPlot->axisRect()->setRangeDrag(Qt::Horizontal | Qt::Vertical);
     ui->mapPlot->axisRect()->setRangeZoom(Qt::Horizontal | Qt::Vertical);
+
+    ui->spectrumPlot->setNoAntialiasingOnDrag(true);
+    ui->spectrumPlot->setInteraction(QCP::iRangeDrag, true);
+    ui->spectrumPlot->setInteraction(QCP::iRangeZoom, true);
+    ui->spectrumPlot->axisRect()->setRangeDrag(Qt::Horizontal | Qt::Vertical);
+    ui->spectrumPlot->axisRect()->setRangeZoom(Qt::Horizontal | Qt::Vertical);
+
+    spectrumGraph = ui->spectrumPlot->addGraph();
+
 }
 
 void MainWindow::initSpectrometerLib()
@@ -34,6 +45,8 @@ void MainWindow::initSpectrometerLib()
     connect(&spectometerLib,SIGNAL(connectionLost()),this,SLOT(switchSpectrometerOffUi()));
     connect(&spectometerLib,SIGNAL(connectionLost()),this,SLOT(stopScanning()));
     connect(&spectometerLib,SIGNAL(newStatus()),this,SLOT(updateSpectometerInfo()));
+
+    connect(&spectometerLib,SIGNAL(newSpectrum()),this,SLOT(drawSpectrum()));
 }
 void MainWindow::initTable()
 {
@@ -57,7 +70,7 @@ void MainWindow::initScanner()
     scanner->moveToThread(&scannerThread);*/
     scanner->setDevices(&spectometerLib,&moveTable);
 
-    connect(scanner,SIGNAL(scanningStatus(QString)),ui->scanningStatusLabel,SLOT(setText(QString)));
+    connect(scanner,SIGNAL(scanningStatus(QString)),this,SLOT(updateStatusScanning(QString)));
     connect(this,SIGNAL(startScanning(double,double,double,int)),scanner,SLOT(startScan(double,double,double,int)));
     connect(scanner,SIGNAL(errorWhileScanning(QString)),this,SLOT(showMessageBox(QString)));
     connect(scanner,SIGNAL(scanningFinished()),this,SLOT(thenScanningFinished()));
@@ -333,3 +346,52 @@ void MainWindow::thenScanningFinished()
 {
     stopScanning();
 }
+
+void MainWindow::updateStatusScanning(QString status)
+{
+    ui->scanningStatusLabel->setText(status);
+    ui->timeStartLabel->setText(scanner->timeStart.toString("hh:mm:ss"));
+    ui->timeStopLabel->setText(scanner->timeStop.toString("hh:mm:ss"));
+}
+
+void MainWindow::drawSpectrum()
+{
+    if(x.isEmpty()){
+        for(size_t i = 0; i < spectometerLib.spectrum.channelCount; i++){
+            x.append(i);
+            energy.append(i*C1 + C0);
+        }
+    }
+    y.clear();
+    for(size_t i = 0; i < spectometerLib.spectrum.channelCount; i++){
+        y.append(spectometerLib.spectrum.chanArray[i]);
+    }
+
+    spectrumGraph->data()->clear();
+/*
+    if(!ui->energyBox->isChecked()){
+        spectrumGraph->setData(x,y);
+    }else{
+        spectrumGraph->setData(energy,y);
+    }*/
+
+    static bool r = false;
+    if(!r){
+        r = true;
+        ui->spectrumPlot->rescaleAxes();
+    }
+    ui->spectrumPlot->replot();
+}
+
+void MainWindow::loadSettings()
+{
+    if(!QFileInfo("Calibration.ini").isFile()){
+        QSettings s("Calibration.ini",QSettings::IniFormat);
+        s.setValue("C0",5266411);
+        s.setValue("C1",121999);
+    }
+    QSettings s("Calibration.ini",QSettings::IniFormat);
+    C0 = s.value("C0").toInt()/1000000.0;
+    C1 = s.value("C1").toInt()/1000000.0;
+}
+
