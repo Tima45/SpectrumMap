@@ -27,7 +27,7 @@ signals:
     void scanningStatus(QString);
     void scanningFinished();
     void moveToNext();
-    void newResult(SpectrumType*);
+    void newResult(QPointF,SpectrumType*);
 public slots:
     void startScan(double width,double height,double stride,int timeMs);
 private slots:

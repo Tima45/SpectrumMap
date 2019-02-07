@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1008</width>
+    <width>958</width>
     <height>897</height>
    </rect>
   </property>
@@ -28,14 +28,6 @@
         <property name="toolTipDuration">
          <number>-7</number>
         </property>
-        <zorder>label_12</zorder>
-        <zorder>label_13</zorder>
-        <zorder>timeStartLabel</zorder>
-        <zorder>timeStopLabel</zorder>
-        <zorder>groupBox_3</zorder>
-        <zorder>groupBox_2</zorder>
-        <zorder>groupBox</zorder>
-        <zorder>spectrumPlot</zorder>
        </widget>
       </item>
       <item>
@@ -624,6 +616,51 @@
             </size>
            </property>
           </spacer>
+         </item>
+        </layout>
+       </widget>
+      </item>
+      <item>
+       <widget class="QGroupBox" name="groupBox_4">
+        <property name="title">
+         <string>Крутилочки</string>
+        </property>
+        <layout class="QVBoxLayout" name="verticalLayout_6">
+         <item>
+          <layout class="QHBoxLayout" name="horizontalLayout_16">
+           <item>
+            <widget class="QLabel" name="label_14">
+             <property name="text">
+              <string>Отображаемая энергия</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QDoubleSpinBox" name="shownEnergyBox">
+             <property name="decimals">
+              <number>3</number>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </item>
+         <item>
+          <layout class="QHBoxLayout" name="horizontalLayout_17">
+           <item>
+            <widget class="QLabel" name="label_15">
+             <property name="text">
+              <string>Интервал</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QDoubleSpinBox" name="energyIntervalBox">
+             <property name="decimals">
+              <number>3</number>
+             </property>
+            </widget>
+           </item>
+          </layout>
          </item>
         </layout>
        </widget>

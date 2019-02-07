@@ -72,6 +72,8 @@ private slots:
 
     void drawSpectrum();
 
+    void updateColorMap(QPointF point, SpectrumType* spectrum);
+
 private:
     Ui::MainWindow *ui;
     void closeEvent(QCloseEvent *event);
@@ -97,6 +99,12 @@ private:
     QVector<double> energy;
     QVector<double> y;
     QCPGraph *spectrumGraph;
+
+    QCPColorScale *colorScale;
+    QCPColorMap *colorMap;
+    QCPItemTracer *spetrometerPos;
+    QCPItemEllipse *el;
+    void setPostEl(double x,double y);
     //----------------
     void loadSettings();
     double C0,C1;

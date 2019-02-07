@@ -57,6 +57,14 @@ void SampleScanner::startScan(double width, double height, double stride, int ti
     }
 
     timeStart = QDateTime::currentDateTime();
+
+
+    QMapIterator<QPointF,SpectrumType*> i(resultMap);
+      while (i.hasNext()) {
+          i.next();
+          delete i.value();
+      }
+
     resultMap.clear();
 
     moveTable->setAbsolute();
@@ -94,7 +102,7 @@ void SampleScanner::getSpectrum()
         SpectrumType *newSpectrum = new SpectrumType(deviceLib->spectrum);
         resultMap.insert(QPointF(-currentX,-currentY),newSpectrum);
 
-        emit newResult(newSpectrum);
+        emit newResult(QPointF(-currentX,-currentY),newSpectrum);
 
         currentX += revers*stride;
         if(currentX > width/2.0 || currentX < -width/2.0){

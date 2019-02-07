@@ -32,10 +32,49 @@ void MainWindow::initPlot()
     ui->spectrumPlot->setNoAntialiasingOnDrag(true);
     ui->spectrumPlot->setInteraction(QCP::iRangeDrag, true);
     ui->spectrumPlot->setInteraction(QCP::iRangeZoom, true);
-    ui->spectrumPlot->axisRect()->setRangeDrag(Qt::Horizontal | Qt::Vertical);
-    ui->spectrumPlot->axisRect()->setRangeZoom(Qt::Horizontal | Qt::Vertical);
+    ui->spectrumPlot->axisRect()->setRangeDrag(Qt::Horizontal);
+    ui->spectrumPlot->axisRect()->setRangeZoom(Qt::Horizontal);
 
     spectrumGraph = ui->spectrumPlot->addGraph();
+
+    ui->mapPlot->addLayer("low");
+    ui->mapPlot->addLayer("high");
+    ui->mapPlot->moveLayer(ui->mapPlot->layer("grid"),ui->mapPlot->layer("high"));
+
+
+    colorScale = new QCPColorScale(ui->mapPlot);
+    colorScale->setType(QCPAxis::atRight);
+    colorScale->setGradient(QCPColorGradient(QCPColorGradient::gpHot));
+    colorScale->setDataRange(QCPRange(0,1));
+    ui->mapPlot->plotLayout()->addElement(0,1,colorScale);
+
+
+    colorMap = new QCPColorMap(ui->mapPlot->xAxis,ui->mapPlot->yAxis);
+    colorMap->setColorScale(colorScale);
+    colorMap->setTightBoundary(true);
+    colorMap->setLayer("low");
+    //colorMap->data()->setSize(50,50);
+    colorMap->data()->setRange(QCPRange(-50,50),QCPRange(-50,50));
+    colorMap->setInterpolate(false);
+    ui->mapPlot->xAxis->setRange(-50,50);
+    ui->mapPlot->yAxis->setRange(-50,50);
+
+
+    spetrometerPos = new QCPItemTracer(ui->mapPlot);
+    spetrometerPos->setLayer("high");
+    spetrometerPos->setStyle(QCPItemTracer::TracerStyle::tsPlus);
+    spetrometerPos->setPen(QPen(QColor(100,255,0)));
+    spetrometerPos->setSize(10);
+
+    el = new QCPItemEllipse(ui->mapPlot);
+    QPen p1;
+    p1.setWidth(2);
+    p1.setColor(QColor(Qt::green));
+    el->setPen(p1);
+
+    el->topLeft->setCoords(-2,2);
+    el->bottomRight->setCoords(2,-2);
+    el->setLayer("high");
 
 }
 
@@ -66,14 +105,13 @@ void MainWindow::initTable()
 void MainWindow::initScanner()
 {
     scanner = new SampleScanner();
-    /*
-    scanner->moveToThread(&scannerThread);*/
     scanner->setDevices(&spectometerLib,&moveTable);
 
     connect(scanner,SIGNAL(scanningStatus(QString)),this,SLOT(updateStatusScanning(QString)));
     connect(this,SIGNAL(startScanning(double,double,double,int)),scanner,SLOT(startScan(double,double,double,int)));
     connect(scanner,SIGNAL(errorWhileScanning(QString)),this,SLOT(showMessageBox(QString)));
     connect(scanner,SIGNAL(scanningFinished()),this,SLOT(thenScanningFinished()));
+    connect(scanner,SIGNAL(newResult(QPointF,SpectrumType*)),this,SLOT(updateColorMap(QPointF,SpectrumType*)));
 }
 
 bool MainWindow::nativeEvent(const QByteArray &eventType, void *message, long *result)
@@ -102,6 +140,14 @@ void MainWindow::seHvIndicatorValue(int value)
         }
     }
 }
+
+void MainWindow::setPostEl(double x, double y)
+{
+    spetrometerPos->position->setCoords(x,y);
+    el->topLeft->setCoords(x-2,y+2);
+    el->bottomRight->setCoords(x+2,y-2);
+}
+
 void MainWindow::closeEvent(QCloseEvent *event)
 {
     Q_UNUSED(event);
@@ -239,6 +285,9 @@ void MainWindow::updateStatusInfo()
 {
     ui->tableX->setText(QString::number(moveTable.status.X));
     ui->tableY->setText(QString::number(moveTable.status.Y));
+
+    setPostEl(-moveTable.status.X,-moveTable.status.Y);
+    ui->mapPlot->replot();
     ui->tableStatusLabel->setText(moveTable.status.idle);
 
     if(!isScanning){
@@ -302,6 +351,15 @@ void MainWindow::on_startScanButton_clicked()
         ui->startScanButton->setText("Стоп");
         switchButtons(false);
         switchScanButtons(false);
+
+        colorMap->data()->setSize(ui->sampleWidthEdit->value()/ui->strideEdit->value() +1,ui->sampleHeightEdit->value()/ui->strideEdit->value() +1);
+        colorMap->data()->setRange(QCPRange(-ui->sampleWidthEdit->value()/2.0,ui->sampleWidthEdit->value()/2.0),QCPRange(-ui->sampleHeightEdit->value()/2.0,ui->sampleHeightEdit->value()/2.0));
+        ui->mapPlot->xAxis->setRange(QCPRange(-ui->sampleWidthEdit->value()/2.0,ui->sampleWidthEdit->value()/2.0));
+        ui->mapPlot->yAxis->setRange(QCPRange(-ui->sampleHeightEdit->value()/2.0,ui->sampleHeightEdit->value()/2.0));
+
+        ui->mapPlot->replot();
+
+
         emit startScanning(ui->sampleWidthEdit->value(),ui->sampleHeightEdit->value(),ui->strideEdit->value(),ui->stoppingTimeEdit->value());
     }else{
         scanner->stopAll();
@@ -368,12 +426,6 @@ void MainWindow::drawSpectrum()
     }
 
     spectrumGraph->data()->clear();
-/*
-    if(!ui->energyBox->isChecked()){
-        spectrumGraph->setData(x,y);
-    }else{
-        spectrumGraph->setData(energy,y);
-    }*/
 
     static bool r = false;
     if(!r){
@@ -381,6 +433,13 @@ void MainWindow::drawSpectrum()
         ui->spectrumPlot->rescaleAxes();
     }
     ui->spectrumPlot->replot();
+}
+
+void MainWindow::updateColorMap(QPointF point, SpectrumType *spectrum)
+{
+    colorMap->data()->setData(point.x(),point.y(),spectrum->dataCount);
+    colorMap->rescaleDataRange();
+    ui->mapPlot->replot();
 }
 
 void MainWindow::loadSettings()
@@ -393,5 +452,15 @@ void MainWindow::loadSettings()
     QSettings s("Calibration.ini",QSettings::IniFormat);
     C0 = s.value("C0").toInt()/1000000.0;
     C1 = s.value("C1").toInt()/1000000.0;
+
+    ui->shownEnergyBox->setMaximum(16384*C0+C1);
+    ui->shownEnergyBox->setMinimum(C0+C1);
+    ui->shownEnergyBox->setValue((16384/2.0)*C0+C1);
+    ui->shownEnergyBox->setSingleStep((16384*C0+C1)*0.01);
+
+    ui->energyIntervalBox->setMaximum((16384*C0+C1)/2.0);
+    ui->energyIntervalBox->setMinimum(0);
+    ui->energyIntervalBox->setSingleStep((16384*C0+C1)*0.01);
+    ui->energyIntervalBox->setValue((16384*C0+C1)*0.02);
 }
 
