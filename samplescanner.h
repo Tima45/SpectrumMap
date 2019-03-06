@@ -20,8 +20,13 @@ public:
     QReadWriteLock l;
     QDateTime timeStart;
     QDateTime timeStop;
-    QMap<QPointF,SpectrumType*> resultMap;
+    QList<QPair<QPointF,SpectrumType*>> resultMap;
     void stopAll();
+    double width = 50;
+    double height = 50;
+    double stride = 10;
+    void clearSpectrumMap();
+
 signals:
     void errorWhileScanning(QString);
     void scanningStatus(QString);
@@ -41,9 +46,7 @@ private:
     QTimer positionChekerTimer;
     QTimer scanTimer;
 
-    double width;
-    double height;
-    double stride;
+
     int timeMs;
 
     double revers = -1.0;

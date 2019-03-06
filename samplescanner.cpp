@@ -1,13 +1,6 @@
 #include "samplescanner.h"
 #include "math.h"
 
-bool operator<(const QPointF &p1,const QPointF &p2)
-{
-    double r1 = sqrt(powf(p1.x(),2)+powf(p1.y(),2));
-    double r2 = sqrt(powf(p2.x(),2)+powf(p2.y(),2));
-    return r1 < r2;
-}
-
 
 SampleScanner::SampleScanner(QObject *parent) : QObject(parent)
 {
@@ -27,7 +20,16 @@ void SampleScanner::setDevices(QHPGDeviceLib *deviceLib, MoveTable *moveTable)
 {
     this->deviceLib = deviceLib;
     this->moveTable = moveTable;
-    connect(this->deviceLib,SIGNAL(newSpectrum()),this,SLOT(getSpectrum()),Qt::ConnectionType::QueuedConnection);
+    //connect(this->deviceLib,SIGNAL(newSpectrum()),this,SLOT(getSpectrum()),Qt::ConnectionType::QueuedConnection);
+}
+
+void SampleScanner::clearSpectrumMap()
+{
+    for(int i = 0; i < resultMap.count(); i++){
+        delete resultMap.at(i).second;
+    }
+
+    resultMap.clear();
 }
 
 void SampleScanner::startScan(double width, double height, double stride, int timeMs)
@@ -41,11 +43,11 @@ void SampleScanner::startScan(double width, double height, double stride, int ti
         emit errorWhileScanning("Устройства не подключены.");
         return;
     }
-/*
+
     if(deviceLib->extraInfo.sDAC1_CURVAL != 1450){
         emit errorWhileScanning("Нет высокого напряжения.");
         return;
-    }*/
+    }
 
     if(moveTable->status.idle != "Idle" || deviceLib->isScanning){
         emit errorWhileScanning("Устройства не готовы.");
@@ -59,13 +61,7 @@ void SampleScanner::startScan(double width, double height, double stride, int ti
     timeStart = QDateTime::currentDateTime();
 
 
-    QMapIterator<QPointF,SpectrumType*> i(resultMap);
-      while (i.hasNext()) {
-          i.next();
-          delete i.value();
-      }
-
-    resultMap.clear();
+    clearSpectrumMap();
 
     moveTable->setAbsolute();
 
@@ -100,9 +96,22 @@ void SampleScanner::getSpectrum()
         deviceLib->info.sSPK_REALTIME = 0;
 
         SpectrumType *newSpectrum = new SpectrumType(deviceLib->spectrum);
-        resultMap.insert(QPointF(-currentX,-currentY),newSpectrum);
 
-        emit newResult(QPointF(-currentX,-currentY),newSpectrum);
+        QPointF p = QPointF(-currentX,-currentY);
+
+
+        QPair<QPointF,SpectrumType*> pair;
+        pair.first = p;
+        pair.second = newSpectrum;
+
+
+
+
+        resultMap.append(pair);
+
+        emit newResult(p,newSpectrum);
+
+        qDebug() << resultMap.count() << "Количество точек в спектре";
 
         currentX += revers*stride;
         if(currentX > width/2.0 || currentX < -width/2.0){
@@ -125,8 +134,8 @@ void SampleScanner::getSpectrum()
 void SampleScanner::moveingToPos()
 {
     if(continueScanning){
-        moveTable->moveTo(currentX,currentY,500);
-        emit scanningStatus(QString("Смещаемся к следующей точке X%1 Y%2").arg(currentX).arg(currentY));
+        moveTable->moveTo(currentX,currentY);
+        emit scanningStatus(QString("Смещаемся к следующей точке X%1 Y%2").arg(-currentX).arg(-currentY));
     }
 }
 
@@ -142,14 +151,14 @@ void SampleScanner::checkPosition()
             deviceLib->startScanSpectrum();
 
             scanTimer.start(timeMs);
-            emit scanningStatus(QString("Сканирование... текущее положение X%1 Y%2").arg(currentX).arg(currentY));
+            emit scanningStatus(QString("Сканирование... текущее положение X%1 Y%2").arg(-currentX).arg(-currentY));
         }else{
             stopAll();
             emit errorWhileScanning("Детектор и так уже набирает спектр :(");
         }
         return;
     }
-    if(counter == 5000/positionChekerTimer.interval()){     //10sec.. too long!
+    if(counter == 10000/positionChekerTimer.interval()){     //10sec.. too long!
         counter = 0;
         //stopAll();
         emit moveToNext();

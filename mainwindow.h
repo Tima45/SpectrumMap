@@ -10,7 +10,6 @@
 #include "qhpgdevicelib.h"
 #include "plot/qcustomplot.h"
 #include <QThread>
-#include <QReadWriteLock>
 #include "samplescanner.h"
 
 namespace Ui {
@@ -24,6 +23,8 @@ class MainWindow : public QMainWindow
 public:
     explicit MainWindow(QWidget *parent = 0);
     ~MainWindow();
+    void updateColorMap();
+
 signals:
     void startScanning(double,double,double,int);
 
@@ -74,6 +75,29 @@ private slots:
 
     void updateColorMap(QPointF point, SpectrumType* spectrum);
 
+    void on_savePicButton_clicked();
+
+    void on_openPicButton_clicked();
+
+    void showLoadedOnMap();
+
+
+    void on_groupBox_4_clicked(bool checked);
+
+    void toggleVisibleOnLayout(QLayout *lay, bool v);
+
+    void on_groupBox_3_clicked(bool checked);
+
+    void on_groupBox_2_clicked(bool checked);
+
+    void on_groupBox_clicked(bool checked);
+
+    void handleClick(QMouseEvent *);
+
+    void on_shownEnergyBox_valueChanged(double arg1);
+
+    void on_energyIntervalBox_valueChanged(double arg1);
+
 private:
     Ui::MainWindow *ui;
     void closeEvent(QCloseEvent *event);
@@ -92,25 +116,30 @@ private:
     QTimer serialPortUpdater;
     bool isScanning  = false;
     //--------------
-    SampleScanner *scanner;
-    QReadWriteLock l;
+    SampleScanner *scanner = nullptr;
     //--------------
     QVector<double> x;
     QVector<double> energy;
     QVector<double> y;
-    QCPGraph *spectrumGraph;
+    QCPGraph *spectrumGraph = nullptr;
+    QCPItemLine *energyLine = nullptr;
+    QCPItemLine *energyLineLeft = nullptr;
+    QCPItemLine *energyLineRgiht = nullptr;
+    void setLineKey(QCPItemLine *line,double key);
 
-    QCPColorScale *colorScale;
-    QCPColorMap *colorMap;
-    QCPItemTracer *spetrometerPos;
-    QCPItemEllipse *el;
+    QCPColorScale *colorScale = nullptr;
+    QCPColorMap *colorMap = nullptr;
+    QCPItemTracer *spetrometerPos = nullptr;
+    QCPItemEllipse *el = nullptr;
     void setPostEl(double x,double y);
     //----------------
     void loadSettings();
+    int toChanal(double value);
+    double toEnergy(int c);
+    double countSummOnInterval(SpectrumType* spectrum);
     double C0,C1;
-
-
-
+    bool freeIntaraction = false;
+    bool autoRescaleData = true;
 
 };
 

@@ -34,7 +34,7 @@
        <widget class="QCustomPlot" name="spectrumPlot" native="true">
         <property name="sizePolicy">
          <sizepolicy hsizetype="MinimumExpanding" vsizetype="Preferred">
-          <horstretch>1</horstretch>
+          <horstretch>19</horstretch>
           <verstretch>1</verstretch>
          </sizepolicy>
         </property>
@@ -47,7 +47,7 @@
       <item>
        <widget class="QGroupBox" name="groupBox">
         <property name="sizePolicy">
-         <sizepolicy hsizetype="Preferred" vsizetype="Minimum">
+         <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
           <horstretch>0</horstretch>
           <verstretch>0</verstretch>
          </sizepolicy>
@@ -60,6 +60,12 @@
         </property>
         <property name="title">
          <string>Управление спектрометром</string>
+        </property>
+        <property name="flat">
+         <bool>true</bool>
+        </property>
+        <property name="checkable">
+         <bool>true</bool>
         </property>
         <layout class="QVBoxLayout" name="verticalLayout">
          <item>
@@ -142,13 +148,19 @@
       <item>
        <widget class="QGroupBox" name="groupBox_2">
         <property name="sizePolicy">
-         <sizepolicy hsizetype="Preferred" vsizetype="Minimum">
+         <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
           <horstretch>0</horstretch>
           <verstretch>0</verstretch>
          </sizepolicy>
         </property>
         <property name="title">
          <string>Управление подвижным столом</string>
+        </property>
+        <property name="flat">
+         <bool>true</bool>
+        </property>
+        <property name="checkable">
+         <bool>true</bool>
         </property>
         <layout class="QVBoxLayout" name="verticalLayout_2">
          <item>
@@ -351,6 +363,9 @@
           <layout class="QGridLayout" name="gridLayout_2">
            <item row="1" column="0">
             <widget class="QRadioButton" name="absoluteRadio">
+             <property name="enabled">
+              <bool>false</bool>
+             </property>
              <property name="text">
               <string>Абсолютно</string>
              </property>
@@ -361,6 +376,9 @@
            </item>
            <item row="1" column="1" colspan="2">
             <widget class="QDoubleSpinBox" name="XBox">
+             <property name="enabled">
+              <bool>false</bool>
+             </property>
              <property name="decimals">
               <number>3</number>
              </property>
@@ -374,6 +392,9 @@
            </item>
            <item row="1" column="3">
             <widget class="QDoubleSpinBox" name="YBox">
+             <property name="enabled">
+              <bool>false</bool>
+             </property>
              <property name="decimals">
               <number>3</number>
              </property>
@@ -387,6 +408,9 @@
            </item>
            <item row="0" column="0">
             <widget class="QRadioButton" name="relativeRadio">
+             <property name="enabled">
+              <bool>false</bool>
+             </property>
              <property name="text">
               <string>Относительно</string>
              </property>
@@ -394,6 +418,9 @@
            </item>
            <item row="0" column="1" colspan="3">
             <widget class="QPushButton" name="gotoButton">
+             <property name="enabled">
+              <bool>false</bool>
+             </property>
              <property name="text">
               <string>Go</string>
              </property>
@@ -409,11 +436,17 @@
         <property name="sizePolicy">
          <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
           <horstretch>0</horstretch>
-          <verstretch>7</verstretch>
+          <verstretch>0</verstretch>
          </sizepolicy>
         </property>
         <property name="title">
          <string>Сканирование</string>
+        </property>
+        <property name="flat">
+         <bool>true</bool>
+        </property>
+        <property name="checkable">
+         <bool>true</bool>
         </property>
         <layout class="QVBoxLayout" name="verticalLayout_3">
          <item>
@@ -604,19 +637,6 @@
            </item>
           </layout>
          </item>
-         <item>
-          <spacer name="verticalSpacer">
-           <property name="orientation">
-            <enum>Qt::Vertical</enum>
-           </property>
-           <property name="sizeHint" stdset="0">
-            <size>
-             <width>20</width>
-             <height>40</height>
-            </size>
-           </property>
-          </spacer>
-         </item>
         </layout>
        </widget>
       </item>
@@ -624,6 +644,15 @@
        <widget class="QGroupBox" name="groupBox_4">
         <property name="title">
          <string>Крутилочки</string>
+        </property>
+        <property name="flat">
+         <bool>true</bool>
+        </property>
+        <property name="checkable">
+         <bool>true</bool>
+        </property>
+        <property name="checked">
+         <bool>true</bool>
         </property>
         <layout class="QVBoxLayout" name="verticalLayout_6">
          <item>
@@ -662,8 +691,35 @@
            </item>
           </layout>
          </item>
+         <item>
+          <widget class="QPushButton" name="openPicButton">
+           <property name="text">
+            <string>Открыть карту</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="savePicButton">
+           <property name="text">
+            <string>Сохранить карту</string>
+           </property>
+          </widget>
+         </item>
         </layout>
        </widget>
+      </item>
+      <item>
+       <spacer name="verticalSpacer">
+        <property name="orientation">
+         <enum>Qt::Vertical</enum>
+        </property>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>20</width>
+          <height>40</height>
+         </size>
+        </property>
+       </spacer>
       </item>
      </layout>
     </item>

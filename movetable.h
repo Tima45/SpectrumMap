@@ -35,6 +35,7 @@ public:
     QTimer tableStatusTimer;
     void setSerialPort(QString port);
     bool findingHome = false;
+    int statusUpdateTime = 500;
 signals:
     void tableConnected();
     void tableDisconnected();

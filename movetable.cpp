@@ -11,7 +11,7 @@ MoveTable::MoveTable(QObject *parent) : MasterThread(parent)
     connect(this,SIGNAL(error(QString)),this,SLOT(readErrorResponcse(QString)));
     connect(&tableStatusTimer,SIGNAL(timeout()),this,SLOT(askStatus()));
     r = QRegExp("<(.*)\\|WPos:(.?\\d*\\.*\\d*),(.?\\d*\\.*\\d*),(.?\\d*\\.*\\d*)\\|FS:.?\\d*\\.*\\d*,.?\\d*\\.*\\d*(\\|Pn:([XYZ]*))?");
-    tableStatusTimer.setInterval(1000);
+    tableStatusTimer.setInterval(statusUpdateTime);
 }
 
 MoveTable::~MoveTable()

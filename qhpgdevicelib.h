@@ -5,8 +5,10 @@
 #include <QDebug>
 #include <QWidget>
 #include <windows.h>
+#include <QThread>
 #include "tchar.h"      // to use _T("") for LoadLibrary
 #define WM_Raduga4_MCA (WM_USER + 1015)
+#define MAXCHANNEL 16384
 
 struct RadugaDevInfo{
     bool iRadugaDevice; // устройство типа RadugaMCA
@@ -29,7 +31,7 @@ struct SpectrumType{
     DWORD workTime; // счетчик времени набора спектра (в миллисекундах)
     DWORD liveTime; // счетчик «живого» времени набора спектра (в миллисекундах)
     DWORD dataTime; // время начала набора
-    DWORD chanArray[16384]; // буфер спектра (по 4 байта на канал)
+    DWORD chanArray[MAXCHANNEL]; // буфер спектра (по 4 байта на канал)
 
     //~SpectrumType();
 };

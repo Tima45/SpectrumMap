@@ -37,7 +37,8 @@ void QHPGDeviceLib::parseMsg(void *message)
                     break;
                 }
                 case cmd_get_spk:{
-                    //qDebug() << "Getting spectrum" <<
+                    qDebug() << "Getting spectrum";
+
                     g4com_get_spk_buf(deviceHandle,&spectrum);
                     emit newStatus();
                     if(spectrum.dataIsNew){
@@ -128,8 +129,12 @@ int QHPGDeviceLib::getDeviceInfo(int deviceNumber,RadugaDevInfo *deviceDescripto
 int QHPGDeviceLib::connectToDevice(int deviceNumber)
 {
     if(deviceHandle == -1){
+        this->thread()->msleep(100);
         if(g4com_connect_by_index(deviceNumber,deviceHandle) == 0){
+
+            qDebug() << deviceHandle << "device lib";
             getDeviceInfo(deviceNumber,&deviceInfo);
+
             if(g4com_set_owner_whandle(deviceHandle,idHandle,0) == 0){
                 emit connected();
                 return 0;

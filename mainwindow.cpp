@@ -1,6 +1,11 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 
+void saveDWORDToStrem(QDataStream &str,DWORD &w){
+    char *bytes = (char *)&w;
+    str.writeRawData(bytes,sizeof(DWORD));
+}
+
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
     ui(new Ui::MainWindow)
@@ -14,6 +19,10 @@ MainWindow::MainWindow(QWidget *parent) :
     initScanner();
 
     updateComCheckBox();
+
+
+
+
 }
 
 MainWindow::~MainWindow()
@@ -24,10 +33,7 @@ MainWindow::~MainWindow()
 void MainWindow::initPlot()
 {
     ui->mapPlot->setNoAntialiasingOnDrag(true);
-    ui->mapPlot->setInteraction(QCP::iRangeDrag, true);
-    ui->mapPlot->setInteraction(QCP::iRangeZoom, true);
-    ui->mapPlot->axisRect()->setRangeDrag(Qt::Horizontal | Qt::Vertical);
-    ui->mapPlot->axisRect()->setRangeZoom(Qt::Horizontal | Qt::Vertical);
+
 
     ui->spectrumPlot->setNoAntialiasingOnDrag(true);
     ui->spectrumPlot->setInteraction(QCP::iRangeDrag, true);
@@ -35,7 +41,27 @@ void MainWindow::initPlot()
     ui->spectrumPlot->axisRect()->setRangeDrag(Qt::Horizontal);
     ui->spectrumPlot->axisRect()->setRangeZoom(Qt::Horizontal);
 
+    energyLine = new QCPItemLine(ui->spectrumPlot);
+    energyLineLeft = new QCPItemLine(ui->spectrumPlot);
+    energyLineRgiht = new QCPItemLine(ui->spectrumPlot);
+
+    setLineKey(energyLine,ui->shownEnergyBox->value());
+    setLineKey(energyLineLeft,ui->shownEnergyBox->value()-ui->energyIntervalBox->value());
+    setLineKey(energyLineRgiht,ui->shownEnergyBox->value()+ui->energyIntervalBox->value());
+
+
+
+
+    connect(ui->spectrumPlot,SIGNAL(mouseDoubleClick(QMouseEvent*)),this,SLOT(handleClick(QMouseEvent*)));
+
     spectrumGraph = ui->spectrumPlot->addGraph();
+    spectrumGraph->addData(toEnergy(0),1);
+    spectrumGraph->addData(toEnergy(MAXCHANNEL),1);
+
+    ui->spectrumPlot->rescaleAxes();
+    ui->spectrumPlot->replot();
+
+
 
     ui->mapPlot->addLayer("low");
     ui->mapPlot->addLayer("high");
@@ -44,7 +70,7 @@ void MainWindow::initPlot()
 
     colorScale = new QCPColorScale(ui->mapPlot);
     colorScale->setType(QCPAxis::atRight);
-    colorScale->setGradient(QCPColorGradient(QCPColorGradient::gpHot));
+    colorScale->setGradient(QCPColorGradient(QCPColorGradient::gpThermal));
     colorScale->setDataRange(QCPRange(0,1));
     ui->mapPlot->plotLayout()->addElement(0,1,colorScale);
 
@@ -54,10 +80,17 @@ void MainWindow::initPlot()
     colorMap->setTightBoundary(true);
     colorMap->setLayer("low");
     //colorMap->data()->setSize(50,50);
-    colorMap->data()->setRange(QCPRange(-50,50),QCPRange(-50,50));
+    colorMap->data()->setRange(QCPRange(-60,60),QCPRange(-60,60));
     colorMap->setInterpolate(false);
-    ui->mapPlot->xAxis->setRange(-50,50);
-    ui->mapPlot->yAxis->setRange(-50,50);
+    ui->mapPlot->xAxis->setRange(-60,60);
+    ui->mapPlot->yAxis->setRange(-60,60);
+
+    ui->mapPlot->setInteraction(QCP::iRangeDrag, true);
+    ui->mapPlot->setInteraction(QCP::iRangeZoom, true);
+    ui->mapPlot->xAxis->ticker()->setTickCount(10);
+    ui->mapPlot->yAxis->ticker()->setTickCount(10);
+    ui->mapPlot->axisRect()->setRangeDrag(0);
+    ui->mapPlot->axisRect()->setRangeZoom(0);
 
 
     spetrometerPos = new QCPItemTracer(ui->mapPlot);
@@ -90,7 +123,7 @@ void MainWindow::initSpectrometerLib()
 void MainWindow::initTable()
 {
     connect(&moveTable,SIGNAL(tableConnected()),this,SLOT(setTableIsConnected()));
-    connect(&moveTable,SIGNAL(tableDisconnected()),this,SLOT(setTableIsDisconnected()));
+    //connect(&moveTable,SIGNAL(tableDisconnected()),this,SLOT(setTableIsDisconnected()));
     connect(&moveTable,SIGNAL(tableDisconnected()),this,SLOT(stopScanning()));
     connect(&moveTable,SIGNAL(statusUpdated()),this,SLOT(updateStatusInfo()));
     connect(&moveTable,SIGNAL(boundingWarning()),this,SLOT(showWarningBox()));
@@ -141,6 +174,14 @@ void MainWindow::seHvIndicatorValue(int value)
     }
 }
 
+void MainWindow::setLineKey(QCPItemLine *line, double key)
+{
+    if(line){
+        line->start->setCoords(key,0);
+        line->end->setCoords(key,MAXCHANNEL);
+    }
+}
+
 void MainWindow::setPostEl(double x, double y)
 {
     spetrometerPos->position->setCoords(x,y);
@@ -159,8 +200,6 @@ void MainWindow::closeEvent(QCloseEvent *event)
     scanner->l.unlock();
 
     serialPortUpdater.stop();
-
-    moveTable.quit();
 }
 
 
@@ -342,20 +381,23 @@ void MainWindow::on_relativeRadio_toggled(bool checked)
 void MainWindow::on_startScanButton_clicked()
 {
     if(!isScanning){
-        scanner->l.lockForWrite();
         scanner->continueScanning = true;
-        scanner->l.unlock();
-
         isScanning = true;
         ui->scanningIndicator->setState(true);
         ui->startScanButton->setText("Стоп");
         switchButtons(false);
         switchScanButtons(false);
 
+        colorMap->data()->clear();
         colorMap->data()->setSize(ui->sampleWidthEdit->value()/ui->strideEdit->value() +1,ui->sampleHeightEdit->value()/ui->strideEdit->value() +1);
         colorMap->data()->setRange(QCPRange(-ui->sampleWidthEdit->value()/2.0,ui->sampleWidthEdit->value()/2.0),QCPRange(-ui->sampleHeightEdit->value()/2.0,ui->sampleHeightEdit->value()/2.0));
         ui->mapPlot->xAxis->setRange(QCPRange(-ui->sampleWidthEdit->value()/2.0,ui->sampleWidthEdit->value()/2.0));
         ui->mapPlot->yAxis->setRange(QCPRange(-ui->sampleHeightEdit->value()/2.0,ui->sampleHeightEdit->value()/2.0));
+
+
+        ui->mapPlot->xAxis->ticker()->setTickCount(ui->sampleWidthEdit->value()/ui->strideEdit->value());
+        ui->mapPlot->yAxis->ticker()->setTickCount(ui->sampleWidthEdit->value()/ui->strideEdit->value());
+
 
         ui->mapPlot->replot();
 
@@ -426,6 +468,7 @@ void MainWindow::drawSpectrum()
     }
 
     spectrumGraph->data()->clear();
+    spectrumGraph->setData(x,y);
 
     static bool r = false;
     if(!r){
@@ -437,8 +480,10 @@ void MainWindow::drawSpectrum()
 
 void MainWindow::updateColorMap(QPointF point, SpectrumType *spectrum)
 {
-    colorMap->data()->setData(point.x(),point.y(),spectrum->dataCount);
-    colorMap->rescaleDataRange();
+    colorMap->data()->setData(point.x(),point.y(),countSummOnInterval(spectrum));
+    if(autoRescaleData){
+        colorMap->rescaleDataRange();
+    }
     ui->mapPlot->replot();
 }
 
@@ -453,14 +498,277 @@ void MainWindow::loadSettings()
     C0 = s.value("C0").toInt()/1000000.0;
     C1 = s.value("C1").toInt()/1000000.0;
 
-    ui->shownEnergyBox->setMaximum(16384*C0+C1);
-    ui->shownEnergyBox->setMinimum(C0+C1);
-    ui->shownEnergyBox->setValue((16384/2.0)*C0+C1);
-    ui->shownEnergyBox->setSingleStep((16384*C0+C1)*0.01);
+    ui->shownEnergyBox->setMaximum(toEnergy(MAXCHANNEL));
+    ui->shownEnergyBox->setMinimum(toEnergy(1));
+    ui->shownEnergyBox->setValue(toEnergy(MAXCHANNEL/3.0));
+    ui->shownEnergyBox->setSingleStep(toEnergy(MAXCHANNEL)*0.001);
 
-    ui->energyIntervalBox->setMaximum((16384*C0+C1)/2.0);
-    ui->energyIntervalBox->setMinimum(0);
-    ui->energyIntervalBox->setSingleStep((16384*C0+C1)*0.01);
-    ui->energyIntervalBox->setValue((16384*C0+C1)*0.02);
+    ui->energyIntervalBox->setMaximum(toEnergy(MAXCHANNEL)/2.0);
+    ui->energyIntervalBox->setMinimum(1);
+    ui->energyIntervalBox->setSingleStep(toEnergy(MAXCHANNEL)*0.001);
+    ui->energyIntervalBox->setValue(toEnergy(MAXCHANNEL)*0.002);
 }
 
+int MainWindow::toChanal(double value)
+{
+    return qRound((value-C0)/C1);
+}
+
+
+double MainWindow::toEnergy(int c)
+{
+    return 1.0*c*C1+C0;
+}
+
+double MainWindow::countSummOnInterval(SpectrumType *spectrum)
+{
+    double energy = ui->shownEnergyBox->value();
+    double interval = ui->energyIntervalBox->value();
+    int chanal = toChanal(energy);
+    int intervalInChanals = toChanal(interval);
+
+    double summ = 0;
+    for(int i = chanal-intervalInChanals; i < chanal+intervalInChanals; ++i){
+        if(i >= 0 && i < MAXCHANNEL){
+            summ += spectrum->chanArray[i];
+        }
+    }
+    return summ;
+}
+
+
+
+void MainWindow::on_savePicButton_clicked()
+{
+    if(!scanner->continueScanning){
+        //if(!scanner->resultMap.isEmpty()){
+            QString filePath = QFileDialog::getSaveFileName(this,"Сохранить карту","","2d spectrum maps(*.smap)");
+            if(!filePath.isEmpty()){
+
+
+                QFile f(filePath);
+                f.open(QIODevice::WriteOnly);
+                QDataStream str(&f);
+                str << scanner->width;
+                str << scanner->height;
+                str << scanner->stride;
+
+                str << scanner->timeStart;
+                str << scanner->timeStop;
+
+                str << scanner->resultMap.count();
+
+                for(int i = 0; i < scanner->resultMap.count(); i++){
+
+                    qDebug() << scanner->resultMap.at(i).first.x() << scanner->resultMap.at(i).first.y();
+
+                  str << scanner->resultMap.at(i).first.x();
+                  str << scanner->resultMap.at(i).first.y();
+
+                  str << scanner->resultMap.at(i).second->channelCount;
+                  str << scanner->resultMap.at(i).second->dataCount;
+                  str << scanner->resultMap.at(i).second->dataIsNew;
+
+                  saveDWORDToStrem(str,scanner->resultMap.at(i).second->dataTime);
+                  saveDWORDToStrem(str,scanner->resultMap.at(i).second->liveTime);
+                  saveDWORDToStrem(str,scanner->resultMap.at(i).second->workTime);
+                  qDebug() << "saved.";
+                  for(int j = 0; j < MAXCHANNEL; j++){
+                    saveDWORDToStrem(str,scanner->resultMap.at(i).second->chanArray[j]);
+                  }
+                }
+                f.close();
+            }
+        }
+    //}
+}
+
+
+void MainWindow::on_openPicButton_clicked()
+{
+    if(!scanner->continueScanning){
+        QString filePath = QFileDialog::getOpenFileName(this,"Открыть карту","","2d spectrum maps(*.smap)");
+        if(!filePath.isEmpty()){
+
+            scanner->clearSpectrumMap();
+
+            QFile f(filePath);
+            f.open(QIODevice::ReadOnly);
+            QDataStream str(&f);
+
+            str >> scanner->width;
+            str >> scanner->height;
+            str >> scanner->stride;
+
+            qDebug() << scanner->width;
+            qDebug() << scanner->height;
+            qDebug() << scanner->stride;
+
+            str >> scanner->timeStart;
+            str >> scanner->timeStop;
+
+
+            qDebug() << scanner->timeStart.toString("hh:mm:ss");
+            qDebug() << scanner->timeStop.toString("hh:mm:ss");
+
+            int resultMapCount = 0;
+            str >> resultMapCount;
+
+            qDebug() << resultMapCount;
+            for(int i = 0; i < resultMapCount; i++){
+
+              QPointF p;
+              qreal x,y;
+              str >> x;
+              str >> y;
+              p.setX(x);
+              p.setX(y);
+
+
+
+              qDebug() << p.x() << p.y();
+
+              SpectrumType *newSpectrum = new SpectrumType();
+
+              str >> newSpectrum->channelCount;
+              str >> newSpectrum->dataCount;
+
+
+
+              str >> newSpectrum->dataIsNew;
+
+
+              DWORD temp = 0;
+              char* chartmp = (char*)&temp;
+              uint size = sizeof(DWORD);
+
+              str.readBytes(chartmp,size);
+              newSpectrum->dataTime = temp;
+              str.readBytes(chartmp,size);
+              newSpectrum->liveTime = temp;
+              str.readBytes(chartmp,size);
+              newSpectrum->workTime = temp;
+              for(int j = 0; j < 16384; j++){
+                  str.readBytes(chartmp,size);
+                  newSpectrum->chanArray[j] = temp;
+              }
+              QPair<QPointF,SpectrumType*> pair;
+              pair.first = p;
+              pair.second = newSpectrum;
+              scanner->resultMap.append(pair);
+            }
+            f.close();
+            showLoadedOnMap();
+        }
+    }
+}
+
+void MainWindow::showLoadedOnMap()
+{
+    ui->sampleWidthEdit->setValue(scanner->width);
+    ui->sampleHeightEdit->setValue(scanner->height);
+    ui->strideEdit->setValue(scanner->stride);
+
+    ui->timeStartLabel->setText(scanner->timeStart.toString("hh:mm:ss"));
+    ui->timeStopLabel->setText(scanner->timeStop.toString("hh:mm:ss"));
+
+    colorMap->data()->clear();
+    colorMap->data()->setSize(ui->sampleWidthEdit->value()/ui->strideEdit->value() +1,ui->sampleHeightEdit->value()/ui->strideEdit->value() +1);
+    colorMap->data()->setRange(QCPRange(-ui->sampleWidthEdit->value()/2.0,ui->sampleWidthEdit->value()/2.0),QCPRange(-ui->sampleHeightEdit->value()/2.0,ui->sampleHeightEdit->value()/2.0));
+    ui->mapPlot->xAxis->setRange(QCPRange(-ui->sampleWidthEdit->value()/2.0,ui->sampleWidthEdit->value()/2.0));
+    ui->mapPlot->yAxis->setRange(QCPRange(-ui->sampleHeightEdit->value()/2.0,ui->sampleHeightEdit->value()/2.0));
+
+
+    ui->mapPlot->xAxis->ticker()->setTickCount(ui->sampleWidthEdit->value()/ui->strideEdit->value());
+    ui->mapPlot->yAxis->ticker()->setTickCount(ui->sampleWidthEdit->value()/ui->strideEdit->value());
+
+
+    for(int i = 0; i < scanner->resultMap.count(); i++){
+        colorMap->data()->setData(scanner->resultMap.at(i).first.x(),scanner->resultMap.at(i).first.y(),countSummOnInterval(scanner->resultMap.at(i).second));
+
+    }
+    colorMap->rescaleDataRange();
+    ui->mapPlot->replot();
+
+}
+
+
+void MainWindow::on_groupBox_4_clicked(bool checked)
+{
+    toggleVisibleOnLayout(ui->groupBox_4->layout(),checked);
+}
+
+void MainWindow::toggleVisibleOnLayout(QLayout *lay,bool v)
+{
+    if(lay){
+        for(int i = 0; i < lay->count(); ++i){
+            QWidget *w = lay->itemAt(i)->widget();
+            QLayout *l = lay->itemAt(i)->layout();
+            if(w){
+                w->setVisible(v);
+            }
+            if(l){
+                toggleVisibleOnLayout(l,v);
+            }
+        }
+    }
+}
+
+void MainWindow::on_groupBox_3_clicked(bool checked)
+{
+    toggleVisibleOnLayout(ui->groupBox_3->layout(),checked);
+}
+
+void MainWindow::on_groupBox_2_clicked(bool checked)
+{
+    toggleVisibleOnLayout(ui->groupBox_2->layout(),checked);
+}
+
+void MainWindow::on_groupBox_clicked(bool checked)
+{
+    toggleVisibleOnLayout(ui->groupBox->layout(),checked);
+}
+void MainWindow::handleClick(QMouseEvent *)
+{
+    freeIntaraction = !freeIntaraction;
+    if(freeIntaraction){
+        ui->spectrumPlot->axisRect()->setRangeDrag(Qt::Horizontal | Qt::Vertical);
+        ui->spectrumPlot->axisRect()->setRangeZoom(Qt::Horizontal | Qt::Vertical);
+    }else{
+        ui->spectrumPlot->axisRect()->setRangeDrag(Qt::Horizontal);
+        ui->spectrumPlot->axisRect()->setRangeZoom(Qt::Horizontal);
+    }
+}
+
+void MainWindow::updateColorMap()
+{
+    if(colorMap){
+        for(int i = 0; i < scanner->resultMap.count(); i++){
+            QPointF p = scanner->resultMap.at(i).first;
+            SpectrumType *spectrum = scanner->resultMap.at(i).second;
+            colorMap->data()->setData(p.x(),p.y(),countSummOnInterval(spectrum));
+        }
+        if(autoRescaleData){
+            colorMap->rescaleDataRange();
+        }
+        ui->mapPlot->replot();
+    }
+}
+
+void MainWindow::on_shownEnergyBox_valueChanged(double arg1)
+{
+    setLineKey(energyLine,arg1);
+    setLineKey(energyLineLeft,arg1-ui->energyIntervalBox->value());
+    setLineKey(energyLineRgiht,arg1+ui->energyIntervalBox->value());
+
+    updateColorMap();
+    ui->spectrumPlot->replot();
+}
+
+void MainWindow::on_energyIntervalBox_valueChanged(double arg1)
+{
+    setLineKey(energyLineLeft,ui->shownEnergyBox->value()-arg1);
+    setLineKey(energyLineRgiht,ui->shownEnergyBox->value()+arg1);
+    updateColorMap();
+    ui->spectrumPlot->replot();
+}
